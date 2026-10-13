@@ -90,7 +90,12 @@ export async function streamChatResponse(
 
   let latest: UIMessage | undefined;
 
-  for await (const message of readUIMessageStream({ stream: chunkStream })) {
+  // terminateOnError: surface server `error` chunks (bad API key, quota, …) as a thrown
+  // Error instead of silently finishing with an empty assistant message.
+  for await (const message of readUIMessageStream({
+    stream: chunkStream,
+    terminateOnError: true,
+  })) {
     latest = message;
     options.onAssistantUpdate(message, textFromUiMessage(message));
   }
