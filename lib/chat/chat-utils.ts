@@ -6,6 +6,7 @@ import type {
   ConversationSummary,
   Message,
 } from "@/types/chat";
+import type { Attachment, DocumentPartData } from "@/types/file";
 
 const DAY_MS = 86_400_000;
 
@@ -130,6 +131,7 @@ export function apiMessageToMessage(message: ApiMessage): Message {
         : ("idle" as const);
 
   const contentFromParts = textFromStoredParts(message.parts);
+  const attachments = attachmentsFromStoredParts(message.parts);
 
   return {
     id: message.id,
@@ -137,7 +139,31 @@ export function apiMessageToMessage(message: ApiMessage): Message {
     content: contentFromParts || message.content,
     createdAt: new Date(message.createdAt).getTime(),
     status: status === "streaming" ? "idle" : status,
+    attachments: attachments.length ? attachments : undefined,
   };
+}
+
+/** Rebuilds uploaded PDFs from persisted `data-document` parts. */
+function attachmentsFromStoredParts(parts: unknown): Attachment[] {
+  if (!Array.isArray(parts)) return [];
+
+  return parts
+    .filter(
+      (part): part is { type: "data-document"; data: DocumentPartData } =>
+        part?.type === "data-document" && typeof part.data?.documentId === "string",
+    )
+    .map(({ data }) => ({
+      id: data.documentId,
+      documentId: data.documentId,
+      // Older messages stored only the id.
+      name: data.name ?? "Document.pdf",
+      size: data.size ?? 0,
+      mimeType: "application/pdf",
+      extension: "pdf",
+      kind: "document",
+      status: "uploaded",
+      progress: 100,
+    }));
 }
 
 function textFromStoredParts(parts: unknown): string {

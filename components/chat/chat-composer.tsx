@@ -19,7 +19,7 @@ import { Kbd } from "@/components/ui/primitives";
 import { useIsAppleDevice } from "@/hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { ACCEPT_ATTRIBUTE, releasePreview, validateFile } from "@/lib/chat/attachments";
-import { uploadFile } from "@/lib/chat/mock-chat-service";
+import { uploadDocument } from "@/lib/chat/upload-document";
 import { usePreferences } from "@/providers/preferences-provider";
 import type { Attachment } from "@/types/file";
 import { cn } from "@/utils/cn";
@@ -84,7 +84,7 @@ export function ChatComposer({
   /* Attachments ───────────────────────────────────────────────────────── */
 
   const startUpload = useCallback(
-    (attachment: Attachment) => {
+    (attachment: Attachment, file: File) => {
       setAttachments((current) =>
         current.map((entry) =>
           entry.id === attachment.id
@@ -93,22 +93,24 @@ export function ChatComposer({
         ),
       );
 
-      const { promise } = uploadFile(attachment, (progress) => {
+      uploadDocument(file, (progress) => {
         setAttachments((current) =>
           current.map((entry) =>
             entry.id === attachment.id ? { ...entry, progress } : entry,
           ),
         );
-      });
-
-      promise
-        .then((uploaded) => {
+      })
+        .then((documentId) => {
           setAttachments((current) =>
-            current.map((entry) => (entry.id === uploaded.id ? uploaded : entry)),
+            current.map((entry) =>
+              entry.id === attachment.id
+                ? { ...entry, status: "uploaded" as const, progress: 100, documentId }
+                : entry,
+            ),
           );
           toast({
             title: "File attached",
-            description: uploaded.name,
+            description: attachment.name,
             variant: "success",
             duration: 2200,
           });
@@ -133,14 +135,14 @@ export function ChatComposer({
 
       // Validation happens outside the state updater — updaters must stay
       // pure, and React may run them twice in development.
-      const accepted: Attachment[] = [];
+      const accepted: { attachment: Attachment; file: File }[] = [];
       const rejected: string[] = [];
       let count = attachmentsRef.current.length;
 
       for (const file of incoming) {
         const result = validateFile(file, count);
         if (result.ok) {
-          accepted.push(result.attachment);
+          accepted.push({ attachment: result.attachment, file });
           count += 1;
         } else {
           rejected.push(result.reason);
@@ -158,8 +160,8 @@ export function ChatComposer({
 
       if (accepted.length === 0) return;
 
-      setAttachments((current) => [...current, ...accepted]);
-      accepted.forEach(startUpload);
+      setAttachments((current) => [...current, ...accepted.map((entry) => entry.attachment)]);
+      accepted.forEach(({ attachment, file }) => startUpload(attachment, file));
     },
     [startUpload, toast],
   );

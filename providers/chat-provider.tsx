@@ -218,6 +218,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           id: userMessage.id,
           role: "user",
           content: userMessage.content,
+          attachments: userMessage.attachments,
         }),
       ];
 
