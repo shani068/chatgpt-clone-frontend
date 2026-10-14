@@ -327,51 +327,6 @@ function delayFor(chunk: string, base: number): number {
   return delay;
 }
 
-/* ── attachments ────────────────────────────────────────────────────────── */
-
-/**
- * Simulates a resumable upload with progress. A real implementation would swap
- * the timers for an XHR progress handler or a signed-URL PUT.
- */
-export function uploadFile(
-  attachment: Attachment,
-  onProgress: (progress: number) => void,
-): { promise: Promise<Attachment>; cancel: () => void } {
-  let cancelled = false;
-  let timer: ReturnType<typeof setInterval> | undefined;
-
-  const promise = new Promise<Attachment>((resolve, reject) => {
-    let progress = 0;
-    timer = setInterval(() => {
-      if (cancelled) {
-        if (timer) clearInterval(timer);
-        return reject(new Error("Upload cancelled"));
-      }
-
-      progress = Math.min(100, progress + 8 + Math.random() * 22);
-      onProgress(Math.round(progress));
-
-      if (progress >= 100) {
-        if (timer) clearInterval(timer);
-        resolve({
-          ...attachment,
-          status: "uploaded",
-          progress: 100,
-          url: `mock://uploads/${attachment.id}/${encodeURIComponent(attachment.name)}`,
-        });
-      }
-    }, 110);
-  });
-
-  return {
-    promise,
-    cancel: () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    },
-  };
-}
-
 /* ── preferences & session ──────────────────────────────────────────────── */
 
 export function loadPreferences(): UserPreferences {

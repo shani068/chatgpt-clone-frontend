@@ -14,14 +14,7 @@ import { createId, formatBytes } from "./chat-utils";
 export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(",");
 
 const KIND_BY_EXTENSION: Record<AcceptedExtension, AttachmentKind> = {
-  png: "image",
-  jpg: "image",
-  jpeg: "image",
   pdf: "document",
-  docx: "document",
-  csv: "data",
-  json: "data",
-  txt: "text",
 };
 
 export function extensionOf(name: string): string {

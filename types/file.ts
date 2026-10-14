@@ -21,20 +21,21 @@ export interface Attachment {
   error?: string;
   /** Where a real backend would return the stored object. */
   url?: string;
+  /** Backend id of the indexed PDF, sent with the message for RAG. */
+  documentId?: string;
+}
+
+/** Payload of the `data-document` message part — persisted with the message so attachments survive reloads. */
+export interface DocumentPartData {
+  documentId: string;
+  name: string;
+  size: number;
 }
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 
-export const ACCEPTED_EXTENSIONS = [
-  "pdf",
-  "txt",
-  "docx",
-  "png",
-  "jpg",
-  "jpeg",
-  "csv",
-  "json",
-] as const;
+// Only PDFs are indexed by the backend RAG pipeline.
+export const ACCEPTED_EXTENSIONS = ["pdf"] as const;
 
 export type AcceptedExtension = (typeof ACCEPTED_EXTENSIONS)[number];

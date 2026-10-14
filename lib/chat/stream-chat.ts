@@ -6,6 +6,7 @@ import {
 
 import { API_BASE_URL } from "@/constants/config";
 import { CHAT_API } from "@/constants/routes";
+import type { Attachment, DocumentPartData } from "@/types/file";
 
 function chatApiUrl(): string {
   if (!API_BASE_URL || API_BASE_URL.startsWith("/")) {
@@ -38,11 +39,25 @@ export function toUiMessage(input: {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Indexed PDFs the server should answer from (RAG). */
+  attachments?: Attachment[];
 }): UIMessage {
   return {
     id: input.id,
     role: input.role,
-    parts: [{ type: "text", text: input.content }],
+    parts: [
+      { type: "text", text: input.content },
+      ...(input.attachments ?? []).flatMap(({ documentId, name, size }) =>
+        documentId
+          ? [
+              {
+                type: "data-document" as const,
+                data: { documentId, name, size } satisfies DocumentPartData,
+              },
+            ]
+          : [],
+      ),
+    ],
   };
 }
 
