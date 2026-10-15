@@ -19,10 +19,12 @@ export interface Attachment {
   previewUrl?: string;
   /** Present when status is "error". */
   error?: string;
-  /** Where a real backend would return the stored object. */
+  /** Same-origin URL of the stored image, for sent messages and reloads. */
   url?: string;
   /** Backend id of the indexed PDF, sent with the message for RAG. */
   documentId?: string;
+  /** Backend id of the uploaded image, sent with the message for the vision model. */
+  imageId?: string;
 }
 
 /** Payload of the `data-document` message part — persisted with the message so attachments survive reloads. */
@@ -32,10 +34,19 @@ export interface DocumentPartData {
   size: number;
 }
 
+/** Payload of the `data-image` message part — the server loads the bytes by id. */
+export interface ImagePartData {
+  imageId: string;
+  name: string;
+  size: number;
+  mediaType: string;
+}
+
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB — mirrors the backend limit
 export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 
-// Only PDFs are indexed by the backend RAG pipeline.
-export const ACCEPTED_EXTENSIONS = ["pdf"] as const;
+// PDFs are indexed for RAG; images go to the vision model.
+export const ACCEPTED_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "webp", "gif"] as const;
 
 export type AcceptedExtension = (typeof ACCEPTED_EXTENSIONS)[number];

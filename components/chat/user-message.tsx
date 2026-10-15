@@ -116,7 +116,7 @@ export function UserMessage({
             </Button>
           </div>
         </div>
-      ) : (
+      ) : message.content ? (
         <div
           className={cn(
             "max-w-[85%] whitespace-pre-wrap break-words rounded-xl bg-bubble px-3.5 py-2.5 text-chat text-foreground",
@@ -125,7 +125,7 @@ export function UserMessage({
         >
           {message.content}
         </div>
-      )}
+      ) : null}
 
       {!isEditing && showActions ? (
         <div className="flex items-center gap-2">

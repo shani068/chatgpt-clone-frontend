@@ -7,6 +7,7 @@ import {
   ACCEPTED_EXTENSIONS,
   MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_BYTES,
 } from "@/types/file";
 
 import { createId, formatBytes } from "./chat-utils";
@@ -15,7 +16,17 @@ export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(","
 
 const KIND_BY_EXTENSION: Record<AcceptedExtension, AttachmentKind> = {
   pdf: "document",
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  webp: "image",
+  gif: "image",
 };
+
+function fallbackMimeType(extension: AcceptedExtension): string {
+  if (KIND_BY_EXTENSION[extension] !== "image") return `application/${extension}`;
+  return `image/${extension === "jpg" ? "jpeg" : extension}`;
+}
 
 export function extensionOf(name: string): string {
   const parts = name.split(".");
@@ -51,10 +62,13 @@ export function validateFile(file: File, existingCount: number): ValidationResul
     };
   }
 
-  if (file.size > MAX_ATTACHMENT_BYTES) {
+  const kind = KIND_BY_EXTENSION[extension];
+  const maxBytes = kind === "image" ? MAX_IMAGE_BYTES : MAX_ATTACHMENT_BYTES;
+
+  if (file.size > maxBytes) {
     return {
       ok: false,
-      reason: `${file.name} is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_ATTACHMENT_BYTES)}`,
+      reason: `${file.name} is ${formatBytes(file.size)} — the limit is ${formatBytes(maxBytes)}`,
     };
   }
 
@@ -62,15 +76,13 @@ export function validateFile(file: File, existingCount: number): ValidationResul
     return { ok: false, reason: `${file.name} is empty` };
   }
 
-  const kind = KIND_BY_EXTENSION[extension];
-
   return {
     ok: true,
     attachment: {
       id: createId("file"),
       name: file.name,
       size: file.size,
-      mimeType: file.type || `application/${extension}`,
+      mimeType: file.type || fallbackMimeType(extension),
       extension,
       kind,
       status: "pending",

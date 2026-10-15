@@ -6,7 +6,7 @@ import {
 
 import { API_BASE_URL } from "@/constants/config";
 import { CHAT_API } from "@/constants/routes";
-import type { Attachment, DocumentPartData } from "@/types/file";
+import type { Attachment, DocumentPartData, ImagePartData } from "@/types/file";
 
 function chatApiUrl(): string {
   if (!API_BASE_URL || API_BASE_URL.startsWith("/")) {
@@ -35,28 +35,51 @@ export function textFromUiMessage(message: UIMessage): string {
     .join("");
 }
 
+/** Uploaded attachments become id-only data parts; the server resolves them. */
+function attachmentParts({
+  documentId,
+  imageId,
+  name,
+  size,
+  mimeType,
+}: Attachment): UIMessage["parts"] {
+  if (imageId) {
+    return [
+      {
+        type: "data-image" as const,
+        data: { imageId, name, size, mediaType: mimeType } satisfies ImagePartData,
+      },
+    ];
+  }
+  if (documentId) {
+    return [
+      {
+        type: "data-document" as const,
+        data: { documentId, name, size } satisfies DocumentPartData,
+      },
+    ];
+  }
+  return [];
+}
+
 export function toUiMessage(input: {
   id: string;
   role: "user" | "assistant";
   content: string;
-  /** Indexed PDFs the server should answer from (RAG). */
+  /** Indexed PDFs (RAG) and images (vision) the server should answer from. */
   attachments?: Attachment[];
 }): UIMessage {
+  const files = (input.attachments ?? []).flatMap(attachmentParts);
+
   return {
     id: input.id,
     role: input.role,
     parts: [
-      { type: "text", text: input.content },
-      ...(input.attachments ?? []).flatMap(({ documentId, name, size }) =>
-        documentId
-          ? [
-              {
-                type: "data-document" as const,
-                data: { documentId, name, size } satisfies DocumentPartData,
-              },
-            ]
-          : [],
-      ),
+      // An image-only message has no text part — a blank one would reach the model.
+      ...(input.content || files.length === 0
+        ? [{ type: "text" as const, text: input.content }]
+        : []),
+      ...files,
     ],
   };
 }

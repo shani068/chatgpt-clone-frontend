@@ -317,7 +317,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const sendMessage = useCallback(
     async (content: string, attachments: Attachment[] = []) => {
       const trimmed = content.trim();
-      if (!trimmed || isStreaming) return;
+      // An attached image can be the whole question.
+      const hasImage = attachments.some((attachment) => attachment.imageId);
+      if ((!trimmed && !hasImage) || isStreaming) return;
 
       let target = conversationRef.current;
 
