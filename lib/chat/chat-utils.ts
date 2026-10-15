@@ -1,3 +1,4 @@
+import { imageRoute } from "@/constants/routes";
 import type { ApiConversation, ApiMessage } from "@/types/api";
 import type {
   Conversation,
@@ -6,7 +7,7 @@ import type {
   ConversationSummary,
   Message,
 } from "@/types/chat";
-import type { Attachment, DocumentPartData } from "@/types/file";
+import type { Attachment, DocumentPartData, ImagePartData } from "@/types/file";
 
 const DAY_MS = 86_400_000;
 
@@ -143,27 +144,56 @@ export function apiMessageToMessage(message: ApiMessage): Message {
   };
 }
 
-/** Rebuilds uploaded PDFs from persisted `data-document` parts. */
+/** Untrusted JSON from the `parts` column — narrowed field by field below. */
+interface StoredPart {
+  type?: unknown;
+  data?: { documentId?: unknown; imageId?: unknown };
+}
+
+/** Rebuilds uploaded PDFs and images from persisted `data-document` / `data-image` parts. */
 function attachmentsFromStoredParts(parts: unknown): Attachment[] {
   if (!Array.isArray(parts)) return [];
 
-  return parts
-    .filter(
-      (part): part is { type: "data-document"; data: DocumentPartData } =>
-        part?.type === "data-document" && typeof part.data?.documentId === "string",
-    )
-    .map(({ data }) => ({
-      id: data.documentId,
-      documentId: data.documentId,
-      // Older messages stored only the id.
-      name: data.name ?? "Document.pdf",
-      size: data.size ?? 0,
-      mimeType: "application/pdf",
-      extension: "pdf",
-      kind: "document",
-      status: "uploaded",
-      progress: 100,
-    }));
+  return (parts as (StoredPart | null)[]).flatMap((part): Attachment[] => {
+    if (part?.type === "data-document" && typeof part.data?.documentId === "string") {
+      const data = part.data as DocumentPartData;
+      return [
+        {
+          id: data.documentId,
+          documentId: data.documentId,
+          // Older messages stored only the id.
+          name: data.name ?? "Document.pdf",
+          size: data.size ?? 0,
+          mimeType: "application/pdf",
+          extension: "pdf",
+          kind: "document",
+          status: "uploaded",
+          progress: 100,
+        },
+      ];
+    }
+
+    if (part?.type === "data-image" && typeof part.data?.imageId === "string") {
+      const data = part.data as ImagePartData;
+      const mimeType = data.mediaType ?? "image/png";
+      return [
+        {
+          id: data.imageId,
+          imageId: data.imageId,
+          name: data.name ?? "Image",
+          size: data.size ?? 0,
+          mimeType,
+          extension: mimeType.split("/")[1] ?? "png",
+          kind: "image",
+          status: "uploaded",
+          progress: 100,
+          url: imageRoute(data.imageId),
+        },
+      ];
+    }
+
+    return [];
+  });
 }
 
 function textFromStoredParts(parts: unknown): string {

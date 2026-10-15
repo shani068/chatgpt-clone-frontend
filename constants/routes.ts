@@ -17,7 +17,10 @@ export const CONVERSATIONS_API = "/api/v1/conversations" as const;
 export const MESSAGES_API = "/api/v1/messages" as const;
 export const CHAT_API = "/api/chat" as const;
 export const DOCUMENTS_API = "/api/v1/documents" as const;
+export const IMAGES_API = "/api/v1/images" as const;
 
 export const conversationRoute = (id: string) => `/c/${id}` as const;
+/** Same-origin (proxied) so the session cookie authorises `<img>` requests. */
+export const imageRoute = (id: string) => `${IMAGES_API}/${id}` as const;
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];

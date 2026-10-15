@@ -19,6 +19,8 @@ const ICON_BY_EXTENSION: Record<string, typeof FileText> = {
   png: ImageIcon,
   jpg: ImageIcon,
   jpeg: ImageIcon,
+  webp: ImageIcon,
+  gif: ImageIcon,
   json: FileJson,
   csv: FileSpreadsheet,
   pdf: FileText,
@@ -43,6 +45,8 @@ export function FilePreview({
   const Icon = ICON_BY_EXTENSION[attachment.extension] ?? FileText;
   const isUploading = attachment.status === "uploading" || attachment.status === "pending";
   const isError = attachment.status === "error";
+  // Local object URL while composing; the stored copy after a reload.
+  const thumbnail = attachment.previewUrl ?? attachment.url;
 
   return (
     <div
@@ -58,12 +62,12 @@ export function FilePreview({
           isError ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
         )}
       >
-        {attachment.previewUrl && !isError ? (
+        {thumbnail && !isError ? (
           // Object URLs are local and short-lived — next/image has nothing to
           // optimise here and rejects the blob: protocol outright.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={attachment.previewUrl}
+            src={thumbnail}
             alt=""
             className="absolute inset-0 size-full object-cover"
           />
@@ -123,7 +127,32 @@ export function FilePreview({
   );
 }
 
-/** Row of chips shown under a sent user message. */
+/** Sent image — large enough to read a screenshot; opens full size in a new tab. */
+function ImageThumbnail({ attachment }: { attachment: Attachment }) {
+  const src = attachment.previewUrl ?? attachment.url;
+  if (!src) return <FilePreview attachment={attachment} />;
+
+  return (
+    <a
+      href={attachment.url ?? src}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Open ${attachment.name}`}
+      className="border-border bg-muted focus-visible:ring-ring/40 block overflow-hidden rounded-lg border outline-none focus-visible:ring-[3px]"
+    >
+      {/* Same-origin or blob: URLs — next/image adds nothing here. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={attachment.name}
+        loading="lazy"
+        className="block max-h-60 w-auto max-w-[min(18rem,70vw)] object-contain"
+      />
+    </a>
+  );
+}
+
+/** Row of chips shown under a sent user message; images render as thumbnails. */
 export function AttachmentList({
   attachments,
   className,
@@ -137,7 +166,11 @@ export function AttachmentList({
     <ul className={cn("flex flex-wrap justify-end gap-1.5", className)}>
       {attachments.map((attachment) => (
         <li key={attachment.id}>
-          <FilePreview attachment={attachment} />
+          {attachment.kind === "image" ? (
+            <ImageThumbnail attachment={attachment} />
+          ) : (
+            <FilePreview attachment={attachment} />
+          )}
         </li>
       ))}
     </ul>

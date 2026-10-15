@@ -16,10 +16,12 @@ import { ArrowUp, Paperclip, Square } from "lucide-react";
 import { useToast } from "@/components/shared/toast-provider";
 import { IconButton } from "@/components/ui/icon-button";
 import { Kbd } from "@/components/ui/primitives";
+import { imageRoute } from "@/constants/routes";
 import { useIsAppleDevice } from "@/hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { ACCEPT_ATTRIBUTE, releasePreview, validateFile } from "@/lib/chat/attachments";
 import { uploadDocument } from "@/lib/chat/upload-document";
+import { uploadImage } from "@/lib/chat/upload-image";
 import { usePreferences } from "@/providers/preferences-provider";
 import type { Attachment } from "@/types/file";
 import { cn } from "@/utils/cn";
@@ -62,8 +64,12 @@ export function ChatComposer({
   const isUploading = attachments.some(
     (file) => file.status === "uploading" || file.status === "pending",
   );
+  // An image can carry the question on its own; a PDF still needs text to retrieve with.
+  const hasImage = attachments.some(
+    (file) => file.kind === "image" && file.status === "uploaded",
+  );
   const canSend =
-    draft.trim().length > 0 && !isStreaming && !isUploading && !disabled;
+    (draft.trim().length > 0 || hasImage) && !isStreaming && !isUploading && !disabled;
 
   /* Auto-grow ─────────────────────────────────────────────────────────── */
 
@@ -93,18 +99,26 @@ export function ChatComposer({
         ),
       );
 
-      uploadDocument(file, (progress) => {
+      const onProgress = (progress: number) => {
         setAttachments((current) =>
           current.map((entry) =>
             entry.id === attachment.id ? { ...entry, progress } : entry,
           ),
         );
-      })
-        .then((documentId) => {
+      };
+
+      // Images go to the vision model; PDFs are indexed for RAG.
+      const upload: Promise<Partial<Attachment>> =
+        attachment.kind === "image"
+          ? uploadImage(file, onProgress).then((imageId) => ({ imageId, url: imageRoute(imageId) }))
+          : uploadDocument(file, onProgress).then((documentId) => ({ documentId }));
+
+      upload
+        .then((stored) => {
           setAttachments((current) =>
             current.map((entry) =>
               entry.id === attachment.id
-                ? { ...entry, status: "uploaded" as const, progress: 100, documentId }
+                ? { ...entry, ...stored, status: "uploaded" as const, progress: 100 }
                 : entry,
             ),
           );
