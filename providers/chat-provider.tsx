@@ -12,15 +12,8 @@ import {
   useState,
 } from "react";
 
-import type { UIMessage } from "ai";
-
 import { useToast } from "@/components/shared/toast-provider";
-import {
-  CONVERSATIONS_API,
-  MESSAGES_API,
-  ROUTES,
-  conversationRoute,
-} from "@/constants/routes";
+import { CONVERSATIONS_API, MESSAGES_API, ROUTES, conversationRoute } from "@/constants/routes";
 import { useDelete, usePost } from "@/hooks/useApi";
 import { useFetch } from "@/hooks/useFetch";
 import { api } from "@/lib/api";
@@ -30,20 +23,13 @@ import {
   createId,
   deriveTitle,
 } from "@/lib/chat/chat-utils";
-import {
-  streamChatResponse,
-  textFromUiMessage,
-  toUiMessage,
-} from "@/lib/chat/stream-chat";
+import { streamChatResponse, textFromUiMessage, toUiMessage } from "@/lib/chat/stream-chat";
 import { useSession } from "@/providers/session-provider";
 import type { ApiConversation, ApiEnvelope, ApiMessage } from "@/types/api";
-import type {
-  Conversation,
-  ConversationSummary,
-  Message,
-  MessageFeedback,
-} from "@/types/chat";
+import type { Conversation, ConversationSummary, Message, MessageFeedback } from "@/types/chat";
 import type { Attachment } from "@/types/file";
+
+import type { UIMessage } from "ai";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -83,7 +69,7 @@ function domainToUiMessages(messages: Message[]): UIMessage[] {
         id: message.id,
         role: message.role,
         content: message.content,
-      }),
+      })
     );
 }
 
@@ -103,13 +89,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const {
     data: listResponse,
-    isLoading: historyLoading,
-    isError: historyError,
+    isLoading: isHistoryLoading,
+    isError: hasHistoryError,
     invalidate: invalidateConversations,
   } = useFetch<ApiEnvelope<ApiConversation[]>>(
     sessionStatus === "authenticated" ? CONVERSATIONS_API : null,
     ["conversations"],
-    { enabled: sessionStatus === "authenticated" },
+    { enabled: sessionStatus === "authenticated" }
   );
 
   const conversations = useMemo(() => {
@@ -119,23 +105,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       .map(apiConversationToSummary)
       .sort(
         (a, b) =>
-          Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) ||
-          b.updatedAt - a.updatedAt,
+          Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) || b.updatedAt - a.updatedAt
       );
   }, [listResponse]);
 
   const historyStatus: LoadStatus =
     sessionStatus !== "authenticated"
       ? "idle"
-      : historyLoading
+      : isHistoryLoading
         ? "loading"
-        : historyError
+        : hasHistoryError
           ? "error"
           : "ready";
 
-  const refreshHistory = useCallback(async () => {
-    invalidateConversations();
-  }, [invalidateConversations]);
+  const refreshHistory = useCallback(() => invalidateConversations(), [invalidateConversations]);
 
   const { mutateAsync: createConversationApi } = usePost<
     ApiEnvelope<ApiConversation>,
@@ -144,10 +127,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     invalidateKeys: [["conversations"]],
   });
 
-  const { mutateAsync: deleteConversationApi } = useDelete<ApiEnvelope<null>>(
-    CONVERSATIONS_API,
-    { invalidateKeys: [["conversations"]] },
-  );
+  const { mutateAsync: deleteConversationApi } = useDelete<ApiEnvelope<null>>(CONVERSATIONS_API, {
+    invalidateKeys: [["conversations"]],
+  });
 
   const openConversation = useCallback((id: string | null) => {
     if (id === null) {
@@ -211,8 +193,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const uiHistory = [
         ...domainToUiMessages(
           target.messages.filter(
-            (message) => message.id !== assistantId && message.id !== userMessage.id,
-          ),
+            (message) => message.id !== assistantId && message.id !== userMessage.id
+          )
         ),
         toUiMessage({
           id: userMessage.id,
@@ -226,13 +208,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setConversation((current) => {
           if (current?.id !== target.id) return current;
 
-          let matched = false;
+          let hasMatched = false;
           const messages = current.messages.map((message) => {
-            if (
-              !matched &&
-              (message.id === assistantId || message.status === "streaming")
-            ) {
-              matched = true;
+            if (!hasMatched && (message.id === assistantId || message.status === "streaming")) {
+              hasMatched = true;
               return updater(message);
             }
             return message;
@@ -280,12 +259,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                     status: "idle" as const,
                     error: undefined,
                   }
-                : message,
+                : message
             ),
           };
         });
 
-        invalidateConversations();
+        void invalidateConversations();
       } catch (error) {
         if (controller.signal.aborted) {
           patchAssistantByPlaceholder((message) => ({
@@ -311,7 +290,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsStreaming(false);
       }
     },
-    [invalidateConversations],
+    [invalidateConversations]
   );
 
   const sendMessage = useCallback(
@@ -378,7 +357,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       await runStream(next, userMessage, assistantMessage.id);
     },
-    [createConversationApi, isStreaming, runStream, toast],
+    [createConversationApi, isStreaming, runStream, toast]
   );
 
   const stopGeneration = useCallback(() => {
@@ -397,7 +376,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 status: "idle" as const,
                 content: message.content || "_Generation stopped._",
               }
-            : message,
+            : message
         ),
       };
     });
@@ -442,7 +421,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversationRef.current = next;
       void runStream(next, userMessage, assistantMessage.id);
     },
-    [isStreaming, runStream],
+    [isStreaming, runStream]
   );
 
   const regenerate = useCallback(() => {
@@ -453,10 +432,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (last) regenerateAt(last.id);
   }, [regenerateAt]);
 
-  const retryMessage = useCallback(
-    (messageId: string) => regenerateAt(messageId),
-    [regenerateAt],
-  );
+  const retryMessage = useCallback((messageId: string) => regenerateAt(messageId), [regenerateAt]);
 
   const editMessage = useCallback(
     (messageId: string, content: string) => {
@@ -495,7 +471,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversationRef.current = next;
       void runStream(next, userMessage, assistantMessage.id);
     },
-    [isStreaming, runStream],
+    [isStreaming, runStream]
   );
 
   const setFeedback = useCallback((messageId: string, feedback: MessageFeedback) => {
@@ -506,25 +482,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         messages: current.messages.map((message) =>
           message.id === messageId
             ? { ...message, feedback: message.feedback === feedback ? null : feedback }
-            : message,
+            : message
         ),
       };
     });
   }, []);
 
   const updateConversationFields = useCallback(
-    async (
-      id: string,
-      body: { title?: string; isPinned?: boolean; isArchived?: boolean },
-    ) => {
-      const res = await api.put<ApiEnvelope<ApiConversation>>(
-        `${CONVERSATIONS_API}/${id}`,
-        body,
-      );
-      invalidateConversations();
+    async (id: string, body: { title?: string; isPinned?: boolean; isArchived?: boolean }) => {
+      const res = await api.put<ApiEnvelope<ApiConversation>>(`${CONVERSATIONS_API}/${id}`, body);
+      void invalidateConversations();
       return res.data.data;
     },
-    [invalidateConversations],
+    [invalidateConversations]
   );
 
   const rename = useCallback(
@@ -532,7 +502,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       try {
         const updated = await updateConversationFields(id, { title });
         setConversation((current) =>
-          current?.id === id ? { ...current, title: updated.title } : current,
+          current?.id === id ? { ...current, title: updated.title } : current
         );
         toast({ title: "Conversation renamed", variant: "success" });
       } catch (error) {
@@ -543,7 +513,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         });
       }
     },
-    [toast, updateConversationFields],
+    [toast, updateConversationFields]
   );
 
   const leaveIfActive = useCallback(
@@ -555,7 +525,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       openConversation(null);
       router.push(ROUTES.CHAT);
     },
-    [openConversation, router],
+    [openConversation, router]
   );
 
   const remove = useCallback(
@@ -577,7 +547,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         variant: "default",
       });
     },
-    [conversations, deleteConversationApi, leaveIfActive, toast],
+    [conversations, deleteConversationApi, leaveIfActive, toast]
   );
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -623,7 +593,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       rename,
       remove,
       leaveIfActive,
-    ],
+    ]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

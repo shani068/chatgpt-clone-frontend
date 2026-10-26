@@ -7,26 +7,26 @@ import { resolveError } from "@/utils/resolve-error";
 import type { AxiosRequestConfig } from "axios";
 
 interface UseFetchOptions<T> {
-  enabled?:         boolean;
-  staleTime?:       number;
-  gcTime?:          number;
+  enabled?: boolean;
+  staleTime?: number;
+  gcTime?: number;
   refetchInterval?: number | false;
-  initialData?:     T;
-  params?:          Record<string, string | number | boolean>;
-  config?:          AxiosRequestConfig;
+  initialData?: T;
+  params?: Record<string, string | number | boolean>;
+  config?: AxiosRequestConfig;
 }
 
 export function useFetch<T = unknown>(
-  url:      string | null,
+  url: string | null,
   queryKey: unknown[],
-  options:  UseFetchOptions<T> = {}
+  options: UseFetchOptions<T> = {}
 ) {
   const queryClient = useQueryClient();
 
   const {
     enabled: isEnabled = true,
-    staleTime       = 60 * 1000,
-    gcTime          = 5 * 60 * 1000,
+    staleTime = 60 * 1000,
+    gcTime = 5 * 60 * 1000,
     refetchInterval = false,
     initialData,
     params,
@@ -39,20 +39,19 @@ export function useFetch<T = unknown>(
       const res = await api.get<T>(url ?? "", { ...config, params, signal });
       return res.data;
     },
-    enabled:         !!url && isEnabled,
+    enabled: !!url && isEnabled,
     staleTime,
     gcTime,
     refetchInterval,
     initialData,
   });
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey });
-  };
+  // Resolves once the refetch finishes, so callers can await fresh data.
+  const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   return {
     ...query,
-    error:     query.isError ? resolveError(query.error) : null,
+    error: query.isError ? resolveError(query.error) : null,
     invalidate,
   };
 }
