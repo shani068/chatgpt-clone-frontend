@@ -1,0 +1,5 @@
+.agents/
+.claude/
+.next/
+bun.lock
+next-env.d.ts
